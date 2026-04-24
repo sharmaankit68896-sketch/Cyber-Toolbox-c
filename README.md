@@ -1,2 +1,13 @@
-# Cyber-Toolbox-c
-"A collection of low-level networking and security reconnaissance tools developed in C. Include automated ping tester, port scanner ,and network discovery script designed for local environment auditing and learning OSI Layer 3/4 fundamentals."
+# Cyber-Toolbox-C 🛡️
+A professional collection of networking and security tools written in C.
+
+## 🚀 Tools Included
+1. **Pinger.c**: An ICMP-based connectivity tester. It uses system-level integration to verify if a target host is active.
+2. **Scanner.c**: A TCP Port Scanner. It bridges C with PowerShell's `Test-NetConnection` to audit open services on a target IP.
+
+## 🛠️ How to Compile
+Use `gcc` (GNU Compiler Collection):
+```bash
+gcc pinger.c -o pinger
+gcc scanner.c -o scanner
+
