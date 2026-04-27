@@ -21,7 +21,7 @@ int main() {
 
         // Execute the command
         int result = system(command);
-
+        
         if (result == 0) {
             printf("[+] ACTIVE HOST: %s%d\n", base_ip, i);
         } else {
