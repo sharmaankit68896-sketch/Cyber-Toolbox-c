@@ -1,36 +1,55 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-void encrypt_decrypt(char *input_file, char *output_file, char key) {
-    FILE *in = fopen(input_file, "rb");
-    FILE *out = fopen(output_file, "wb");
+// Function to handle the XOR logic with a multi-character password
+void process_file(char *input_path, char *output_path, char *key) {
+    FILE *in = fopen(input_path, "rb");
+    FILE *out = fopen(output_path, "wb");
 
     if (in == NULL || out == NULL) {
-        printf("Error: Could not open files.\n");
+        printf("\n[!] ERROR: Could not access files. Check names and permissions.\n");
         return;
     }
-    char ch;
+
+    int key_len = strlen(key);
+    int i = 0;
+    int ch;
+
+    // XOR every byte of the file with the corresponding byte of the key
     while ((ch = fgetc(in)) != EOF) {
-        // The XOR Magic
-        fputc(ch ^ key, out);
+        fputc(ch ^ key[i % key_len], out);
+        i++;
     }
+
     fclose(in);
     fclose(out);
-    printf("Operation successful. Check: %s\n", output_file);
+    printf("\n[+] SUCCESS: Processed %d bytes.\n[+] File saved as: %s\n", i, output_path);
 }
+
 int main() {
-    char inputFile[100], outputFile[100];
-    int userKey;
+    char input_file[100], output_file[100], password[100];
 
-    printf("--- Cyber-Toolbox Encryptor ---\n");
-    printf("Enter source file name: ");
-    scanf("%s", inputFile);
-    printf("Enter destination file name: ");
-    scanf("%s", outputFile);
-    printf("Enter a secret numeric key (1-255): ");
-    scanf("%d", &userKey);
+    printf("--- Cyber-Toolbox Professional Encryptor ---\n");
+    
+    printf("Enter Source File (e.g., secret.txt): ");
+    scanf("%s", input_file);
+    
+    printf("Enter Destination File (e.g., locked.bin): ");
+    scanf("%s", output_file);
+    
+    printf("Enter Secret Password: ");
+    scanf("%s", password);
 
-    encrypt_decrypt(inputFile, outputFile, (char)userKey);
+    if (strlen(password) < 4) {
+        printf("[!] WARNING: Short passwords are easy to crack. Use 8+ characters.\n");
+    }
+
+    process_file(input_file, output_file, password);
 
     return 0;
 }
+
+   
+
+   
