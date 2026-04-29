@@ -1,13 +1,14 @@
 # Cyber-Toolbox-C 🛡️
-A professional collection of networking and security tools written in C.
+A collection of lightweight security and networking tools written in C.
 
-## 🚀 Tools Included
-1. **Pinger.c**: An ICMP-based connectivity tester. It uses system-level integration to verify if a target host is active.
-2. **Scanner.c**: A TCP Port Scanner. It bridges C with PowerShell's `Test-NetConnection` to audit open services on a target IP.
+## Tools Included:
+1. **Hex-Vault**: A symmetric XOR encryption engine that obfuscates files into Hexadecimal format.
+2. **Net-Sweep**: A stealthy ICMP network scanner for live host discovery.
+3. **Port-Scanner**: A multi-port auditing tool to check for open services.
 
-## 🛠️ How to Compile
-Use `gcc` (GNU Compiler Collection):
-```bash
-gcc pinger.c -o pinger
-gcc scanner.c -o scanner
+## Technical Skills Demonstrated:
+- Bitwise Logic (XOR Cryptography)
+- Windows API Integration (`windows.h`)
+- Network Protocol Basics (ICMP/TCP)
+- File Stream Handling in C
 
