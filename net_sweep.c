@@ -1,41 +1,49 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <windows.h> // Essential for Sleep()
+
+#ifdef _WIN32
+    #include <windows.h>
+    #define PLATFORM_SLEEP(ms) Sleep(ms)
+#else
+    #include <unistd.h>
+    #define PLATFORM_SLEEP(ms) usleep(ms * 1000) 
+#endif
 
 int main() {
-    // Change "192.168.1." to match your actual gateway (use ipconfig to check)
-    char base_ip[] = "192.168.1."; 
+    char base_ip[] = "192.168.1"; // CHANGE THIS based on your 'hostname -I' result
     char command[100];
 
     printf("--- [Cyber-Toolbox] Network Sweep Initiative ---\n");
-    printf("Targeting Range: %s1 to %s254\n", base_ip, base_ip);
-    printf("Status: Initializing stealth scan...\n\n");
+    printf("Targeting Range: %s.1 to %s.254\n", base_ip, base_ip);
+    printf("Status: Initializing scan...\n");
 
     for (int i = 1; i <= 254; i++) {
-        // Constructing the ping command
-        // -n 1: Send only 1 packet
-        // -w 100: Wait 100ms for response
-        // > nul: Hide the raw ping output from the terminal
-        sprintf(command, "ping -n 1 -w 100 %s%d > nul", base_ip, i);
+        // Construct the ping command based on OS
+        #ifdef _WIN32
+            // Windows: -n 1 (1 packet), -w 100 (100ms timeout)
+            sprintf(command, "ping -n 1 -w 100 %s.%d > nul", base_ip, i);
+        #else
+            // Linux: -c 1 (1 packet), -W 1 (1s timeout)
+            sprintf(command, "ping -c 1 -W 1 %s.%d > /dev/null 2>&1", base_ip, i);
+        #endif
 
-        // Execute the command
         int result = system(command);
-        
+
         if (result == 0) {
-            printf("[+] ACTIVE HOST: %s%d\n", base_ip, i);
+            printf("\n[+] Host Found: %s.%d", base_ip, i);
         } else {
-            // Optional: print a dot to show progress for inactive IPs
-            printf("."); 
-            fflush(stdout);
+            printf(".");
+            fflush(stdout); // Forces the dot to print immediately
         }
-        
-        // --- STEALTH IMPLEMENTATION ---
-        // Sleep(50) pauses the program for 50 milliseconds.
-        // This prevents your CPU and the network from being flooded.
-        Sleep(50); 
+
+        PLATFORM_SLEEP(10); // Small delay to prevent CPU spikes
     }
 
-    printf("\n\n--- Sweep Complete ---\n");
+    printf("\n--- Sweep Complete ---\n");
     return 0;
 }
+
+    
+        
+
