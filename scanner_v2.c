@@ -37,7 +37,6 @@ int main() {
         tv.tv_sec = 0;
         tv.tv_usec = 500000; // 0.5 seconds (500ms)
 
-        // select() checks if the socket is ready for writing (connection established)
         if (select(sock + 1, NULL, &fdset, NULL, &tv) == 1) {
             int so_error;
             socklen_t len = sizeof(so_error);
