@@ -1,55 +1,28 @@
-#include <stdio.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/select.h>
+#include <pthread.h>
 
-int main() {
-    int sock;
-    struct sockaddr_in server;
-    char *target_ip = "127.0.0.1";
-    struct timeval tv;
-    fd_set fdset;
+// Structure to pass data to the thread
+struct port_range {
+    int start;
+    int end;
+    char *ip;
+};
 
-    printf("--- [Cyber-Toolbox] High-Speed Port Audit ---\n");
-
-    for (int port = 1; port <= 1024; port++) {
-        sock = socket(AF_INET, SOCK_STREAM, 0);
-        if (sock < 0) continue;
-
-        // STEP 1: Set socket to Non-Blocking mode
-        fcntl(sock, F_SETFL, O_NONBLOCK);
-
-        server.sin_family = AF_INET;
-        server.sin_addr.s_addr = inet_addr(target_ip);
-        server.sin_port = htons(port);
-
-        // STEP 2: Initiate connection
-        // This returns immediately because of O_NONBLOCK
-        connect(sock, (struct sockaddr *)&server, sizeof(server));
-
-        // STEP 3: Use select() to wait with a custom timeout
-        FD_ZERO(&fdset);
-        FD_SET(sock, &fdset);
-        
-        tv.tv_sec = 0;
-        tv.tv_usec = 500000; // 0.5 seconds (500ms)
-
-        if (select(sock + 1, NULL, &fdset, NULL, &tv) == 1) {
-            int so_error;
-            socklen_t len = sizeof(so_error);
-            getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &len);
-            
-            if (so_error == 0) {
-                printf("[+] Port %d is OPEN\n", port);
-            }
-        }
-
-        close(sock);
+void* scan_range(void* arg) {
+    struct port_range *range = (struct port_range*)arg;
+    for (int i = range->start; i <= range->end; i++) {
+        // ... [Your existing socket connection logic here] ...
     }
-
-    printf("Audit Complete.\n");
-    return 0;
+    return NULL;
 }
+
+// In main:
+pthread_t thread1, thread2;
+struct port_range r1 = {1, 500, "127.0.0.1"};
+struct port_range r2 = {501, 1000, "127.0.0.1"};
+
+pthread_create(&thread1, NULL, scan_range, &r1);
+pthread_create(&thread2, NULL, scan_range, &r2);
+
+pthread_join(thread1, NULL); // Wait for thread 1 to finish
+pthread_join(thread2, NULL); // Wait for thread 2 to finish
+
