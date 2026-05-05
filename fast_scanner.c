@@ -3,11 +3,19 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <time.h>
 
 #define TARGET_IP "127.0.0.1"
+#define MAX_PORTS 100
 
 void* scan_port(void* arg) {
+    // Cast the argument to an int pointer and get the value
     int port = *((int*)arg);
+    
+    // CRITICAL: Free the memory allocated in main to prevent leaks
+    free(arg); 
+
     int sock;
     struct sockaddr_in server;
 
@@ -18,7 +26,12 @@ void* scan_port(void* arg) {
     server.sin_addr.s_addr = inet_addr(TARGET_IP);
     server.sin_port = htons(port);
 
-    // Attempt connection
+    // Set a small timeout so the scan doesn't hang on closed ports
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout, sizeof(timeout));
+
     if (connect(sock, (struct sockaddr *)&server, sizeof(server)) == 0) {
         printf("[!] Success: Port %d is OPEN\n", port);
     }
@@ -27,22 +40,52 @@ void* scan_port(void* arg) {
     return NULL;
 }
 
+void shuffle(int *array, int n) {
+    for (int i = n - 1; i > 0; i--) {
+        int j = rand() % (i + 1);
+        int temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
+}
+
 int main() {
-    pthread_t threads[100];
-    int ports[100];
+    pthread_t threads[MAX_PORTS];
+    int ports[MAX_PORTS];
 
-    printf("--- [Cyber-Toolbox] Multi-Threaded Audit (Target: %s) ---\n", TARGET_IP);
+    srand(time(NULL));
 
-    // Launching 100 threads to scan ports 1-100 simultaneously
-    for (int i = 0; i < 100; i++) {
+    // Initialize the port array
+    for (int i = 0; i < MAX_PORTS; i++) {
         ports[i] = i + 1;
-        pthread_create(&threads[i], NULL, scan_port, &ports[i]);
     }
 
-    for (int i = 0; i < 100; i++) {
+    // Randomize the order
+    shuffle(ports, MAX_PORTS);
+
+    printf("Starting scan on %s...\n", TARGET_IP);
+
+    for (int i = 0; i < MAX_PORTS; i++) {
+        // Use heap allocation for thread safety
+        int *p = malloc(sizeof(int));
+        if (p == NULL) {
+            fprintf(stderr, "Failed to allocate memory\n");
+            continue;
+        }
+        
+        *p = ports[i];
+        
+        if (pthread_create(&threads[i], NULL, scan_port, p) != 0) {
+            perror("Failed to create thread");
+            free(p); // Cleanup if thread creation fails
+        }
+    }
+
+    // Wait for all threads to complete
+    for (int i = 0; i < MAX_PORTS; i++) {
         pthread_join(threads[i], NULL);
     }
 
-    printf("Parallel Audit Complete.\n");
+    printf("Scan complete.\n");
     return 0;
 }
