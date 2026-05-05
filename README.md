@@ -1,14 +1,11 @@
-# Cyber-Toolbox-C 🛡️
-A collection of lightweight security and networking tools written in C.
+## 🚀 High-Performance Port Auditing (v2.0)
+The scanner has been upgraded from a linear execution model to a multi-threaded architecture.
 
-## Tools Included:
-1. **Hex-Vault**: A symmetric XOR encryption engine that obfuscates files into Hexadecimal format.
-2. **Net-Sweep**: A stealthy ICMP network scanner for live host discovery.
-3. **Port-Scanner**: A multi-port auditing tool to check for open services.
+### Features:
+- **Parallel Execution:** Utilizes `pthread.h` to launch multiple concurrent scanning threads.
+- **Dynamic Memory:** Implements `malloc` and `free` for thread-safe argument passing.
+- **Mutex Implementation:** Uses `pthread_mutex_t` to prevent race conditions during console output.
+- **WSL2 Compatibility:** Configured for internal loopback auditing ($127.0.0.1$) within Linux subsystems.
 
-## Technical Skills Demonstrated:
-- Bitwise Logic (XOR Cryptography)
-- Windows API Integration (`windows.h`)
-- Network Protocol Basics (ICMP/TCP)
-- File Stream Handling in C
-
+### Technical Breakthrough:
+Managed to bridge the Windows-to-Linux virtual network gap by implementing local listener/scanner synchronization.
