@@ -1,0 +1,7 @@
+*.exe
+*.o
+*.out
+net_sweep
+fast_scanner
+hex_vault
+tempCodeRunnerFile.c
