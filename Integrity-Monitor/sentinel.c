@@ -5,7 +5,17 @@
 #include <time.h>
 #include <openssl/sha.h>
 
-// Function to calculate SHA-256 hash
+// Function to append alerts to a protected log file
+void log_event(char *message) {
+    FILE *log_file = fopen("sentinel.log", "a"); // 'a' appends to the file
+    if (log_file) {
+        time_t now = time(NULL);
+        // Using strtok to strip the newline from ctime output
+        fprintf(log_file, "[%s] %s\n", strtok(ctime(&now), "\n"), message);
+        fclose(log_file);
+    }
+}
+
 void calculate_sha256(char *path, char output[65]) {
     FILE *file = fopen(path, "rb");
     if (!file) return;
@@ -48,41 +58,42 @@ int main(int argc, char *argv[]) {
     FILE *base = fopen(".baseline.txt", "r");
 
     if (!base) {
-        // Mode 1: Create Baseline
-        printf("[+] No baseline found. Creating new snapshot for %s...\n", target);
+        printf("[+] No baseline found. Creating snapshot for %s...\n", target);
         base = fopen(".baseline.txt", "w");
         fprintf(base, "%ld %ld %s", (long)st.st_size, (long)st.st_mtime, current_hash);
         fclose(base);
-        printf("[*] Baseline saved. Run again to audit.\n");
+        log_event("Initial baseline created for target file."); // Log creation
+        printf("[*] Baseline saved.\n");
     } else {
-        // Mode 2: Audit Mode
         long b_size, b_time;
         char b_hash[65];
         fscanf(base, "%ld %ld %s", &b_size, &b_time, b_hash);
         fclose(base);
 
         int tampered = 0;
-
         printf("--- [Sentinel Audit Report] ---\n");
+
         if (b_size != st.st_size) {
-            printf("[!] ALERT: Size Mismatch! (Base: %ld, Current: %ld)\n", b_size, st.st_size);
+            printf("[!] ALERT: Size Mismatch!\n");
+            log_event("ALERT: File size mismatch detected."); // Log alert
             tampered = 1;
         }
         if (b_time != st.st_mtime) {
-            printf("[!] ALERT: Modification Time Mismatch!\n");
+            printf("[!] ALERT: Timestamp Mismatch!\n");
+            log_event("ALERT: Modification time mismatch detected."); // Log alert
             tampered = 1;
         }
         if (strcmp(b_hash, current_hash) != 0) {
-            printf("[!] ALERT: SHA-256 Hash Mismatch! Content altered.\n");
+            printf("[!] ALERT: SHA-256 Hash Mismatch!\n");
+            log_event("DANGER: Cryptographic hash mismatch! Content altered."); // Log alert
             tampered = 1;
         }
 
         if (!tampered) {
-            printf("[✓] Integrity Verified. No changes detected.\n");
-        } else {
-            printf("\n[DANGER] File integrity compromised.\n");
+            printf("[✓] Integrity Verified.\n");
+            log_event("Audit successful: Integrity verified."); // Log success
         }
     }
-
     return 0;
 }
+
