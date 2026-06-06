@@ -6,15 +6,44 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #define BUFFER_SIZE 65536
 
+void PrintData(unsigned char* data, int Size) {
+    int i;
+    int has_printable = 0;
+
+    // First pass: Quick check to see if there's any readable text inside
+    for (i = 0; i < Size; i++) {
+        if (isprint(data[i])) {
+            has_printable = 1;
+            break;
+        }
+    }
+
+    if (!has_printable) {
+        printf(" [Binary Data Payload]\n");
+        return;
+    }
+
+    printf("\n--- [ PAYLOAD START ] ---\n");
+    for (i = 0; i < Size; i++) {
+        if (isprint(data[i])) {
+            printf("%c", data[i]);
+        } else if (data[i] == '\n' || data[i] == '\r') {
+            printf("%c", data[i]); 
+        } else {
+            printf(".");
+        }
+    }
+    printf("\n--- [ PAYLOAD END ] ---\n\n");
+}
+
 void process_packet(unsigned char* buffer, int size) {
-    // 1. Isolate the IP Header Layer
     struct iphdr *iph = (struct iphdr*)buffer;
     
-    // Filter strictly for TCP protocol streams (Protocol Code 6)
-    if (iph->protocol == 6) {
+    if (iph->protocol == 6) { // TCP Protocol
         struct sockaddr_in source, dest;
         memset(&source, 0, sizeof(source));
         memset(&dest, 0, sizeof(dest));
@@ -22,16 +51,19 @@ void process_packet(unsigned char* buffer, int size) {
         source.sin_addr.s_addr = iph->saddr;
         dest.sin_addr.s_addr = iph->daddr;
         
-        // 2. Calculate the exact size of the IP Header using the 'ihl' (Internet Header Length) field
-        // The ihl represents the number of 32-bit words, so multiply by 4 to get total bytes.
         int ip_header_len = iph->ihl * 4;
-        
-        // 3. Jump memory address directly past the IP Header to locate the start of the TCP Header
         struct tcphdr *tcph = (struct tcphdr*)(buffer + ip_header_len);
+        int tcp_header_len = tcph->doff * 4;
         
-        printf("[TCP STREAM] %s : %d ===> ", inet_ntoa(source.sin_addr), ntohs(tcph->source));
-        printf("%s : %d | Size: %d Bytes | Window: %d\n", 
-               inet_ntoa(dest.sin_addr), ntohs(tcph->dest), ntohs(iph->tot_len), ntohs(tcph->window));
+        int header_size = ip_header_len + tcp_header_len;
+        unsigned char *payload = buffer + header_size;
+        int payload_size = size - header_size;
+        
+        if (payload_size > 0) {
+            printf("[TCP STREAM] %s:%d ===> ", inet_ntoa(source.sin_addr), ntohs(tcph->source));
+            printf("%s:%d | Payload: %d Bytes", inet_ntoa(dest.sin_addr), ntohs(tcph->dest), payload_size);
+            PrintData(payload, payload_size);
+        }
     }
 }
 
@@ -40,17 +72,16 @@ int main() {
     struct sockaddr_in saddr;
     unsigned char *buffer = (unsigned char *)malloc(BUFFER_SIZE); 
 
-    printf("[+] Initializing Advanced Layer 4 TCP/IP Decoder...\n");
+    printf("[+] Initializing Layer 7 Forensic Payload Extractor...\n");
     
-    // Open raw socket intercepting network IP protocol layers
     sock_raw = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
     if (sock_raw < 0) {
-        perror("Socket allocation failed. Verification requirement: Run execution via 'sudo'");
+        perror("Socket allocation failed. Run via 'sudo'");
         free(buffer);
         return 1;
     }
 
-    printf("[*] Forensic network layer interception active...\n");
+    printf("[*] Listening for unencrypted application payloads...\n");
 
     while (1) {
         int saddr_size = sizeof(saddr);
