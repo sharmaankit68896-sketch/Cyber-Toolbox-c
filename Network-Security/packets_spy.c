@@ -6,15 +6,32 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <time.h>
 
 #define BUFFER_SIZE 65536
 #define RULES_FILE "rules.txt"
+#define LOG_FILE "firewall_alerts.log"
 #define MAX_BANNED_IPS 100
 
 char banned_ips[MAX_BANNED_IPS][32];
 int banned_ip_count = 0;
 
-// Reads the blacklist rules from the external configuration file
+void log_firewall_incident(const char* src_ip, int src_port, int dest_port, const char* flag_state, int size) {
+    FILE *log = fopen(LOG_FILE, "a");
+    if (log) {
+        time_t now = time(NULL);
+        char *time_str = ctime(&now);
+        time_str[strlen(time_str) - 1] = '\0'; // Strip trailing newline
+
+        // Write structured, machine-readable log entries
+        fprintf(log, "[%s] ALERT | Source: %s:%d -> Local:%d | State: %s | Size: %d Bytes\n", 
+                time_str, src_ip, src_port, dest_port, flag_state, size);
+        fclose(log);
+    } else {
+        printf("[!] Critical Error: Unable to write to forensic log subsystem.\n");
+    }
+}
+
 void load_firewall_rules() {
     FILE *file = fopen(RULES_FILE, "r");
     if (!file) {
@@ -24,7 +41,6 @@ void load_firewall_rules() {
 
     banned_ip_count = 0;
     while (fgets(banned_ips[banned_ip_count], 32, file) && banned_ip_count < MAX_BANNED_IPS) {
-        // Strip trailing newline character if present
         banned_ips[banned_ip_count][strcspn(banned_ips[banned_ip_count], "\r\n")] = '\0';
         if (strlen(banned_ips[banned_ip_count]) > 0) {
             printf("[RULE LOADED] Blacklisted IP: %s\n", banned_ips[banned_ip_count]);
@@ -55,20 +71,22 @@ void process_packet(unsigned char* buffer, int size) {
         int src_port = ntohs(tcph->source);
         int dest_port = ntohs(tcph->dest);
 
-        // Scan internal memory rules array for a source IP match
         for (int i = 0; i < banned_ip_count; i++) {
             if (strcmp(src_ip, banned_ips[i]) == 0) {
-                printf("\n🚨 [DYNAMIC FIREWALL ALERT] Intercepted Blacklisted Host [%s]\n", src_ip);
-                printf("| Target Port: %d -> Local Port: %d | Size: %d Bytes\n", src_port, dest_port, size);
+                char flag_desc[64] = "DATA_TRANSMISSION";
                 
                 if (tcph->syn && !tcph->ack) {
-                    printf("| State: Unauthorized [SYN] Connection Request!\n");
+                    strcpy(flag_desc, "UNAUTHORIZED_SYN_ATTEMPT");
                 } else if (tcph->rst) {
-                    printf("| State: Connection Reset [RST] Detected.\n");
-                } else {
-                    printf("| State: Active Transmission Payload Blocks Detected.\n");
+                    strcpy(flag_desc, "CONNECTION_RESET_RST");
+                } else if (tcph->fin) {
+                    strcpy(flag_desc, "CONNECTION_TERMINATION_FIN");
                 }
-                printf("------------------------------------------------------------------\n");
+
+                printf("\n🚨 [FIREWALL INCIDENT] Intercepted Blacklisted Host [%s] -> Logged to Disk\n", src_ip);
+                
+                // Commit the security incident to permanent storage
+                log_firewall_incident(src_ip, src_port, dest_port, flag_desc, size);
                 break;
             }
         }
@@ -81,7 +99,7 @@ int main() {
     unsigned char *buffer = (unsigned char *)malloc(BUFFER_SIZE); 
 
     printf("====================================================\n");
-    printf("   LAUNCHING DYNAMIC CONFIGURATION FIREWALL IPS     \n");
+    printf("   LAUNCHING FORENSIC LOGGING IPS FIREWALL ENGINE   \n");
     printf("====================================================\n");
     
     load_firewall_rules();
@@ -93,7 +111,7 @@ int main() {
         return 1;
     }
 
-    printf("\n[*] Packet evaluation core live. Monitoring network interface traffic...\n");
+    printf("\n[*] Processing active. Monitoring socket streams...\n");
 
     while (1) {
         int saddr_size = sizeof(saddr);
