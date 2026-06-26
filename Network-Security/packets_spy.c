@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -12,23 +13,43 @@
 #define RULES_FILE "rules.txt"
 #define LOG_FILE "firewall_alerts.log"
 #define MAX_BANNED_IPS 100
+#define MAX_LOG_SIZE 5242880 // 5 Megabytes in bytes
 
 char banned_ips[MAX_BANNED_IPS][32];
 int banned_ip_count = 0;
 
+void check_and_rotate_logs() {
+    struct stat st;
+    // Check if file exists and get status
+    if (stat(LOG_FILE, &st) == 0) {
+        if (st.st_size >= MAX_LOG_SIZE) {
+            printf("[!] Log threshold reached (%ld bytes). Executing automatic rotation/reset...\n", st.st_size);
+            
+            // For simplicity in a single-file setup, we clear the file to prevent overflow.
+            // In full enterprise tools, you would rename this to .old and open a new one.
+            FILE *clear_file = fopen(LOG_FILE, "w");
+            if (clear_file) {
+                fprintf(clear_file, "[%ld] --- LOG BUFFER AUTOMATICALLY RESET TO PREVENT HARD DRIVE OVERFLOW ---\n", (long)time(NULL));
+                fclose(clear_file);
+                printf("[*] Forensic log space successfully reclaimed.\n");
+            }
+        }
+    }
+}
+
 void log_firewall_incident(const char* src_ip, int src_port, int dest_port, const char* flag_state, int size) {
+    // Check size limitations before making an append write
+    check_and_rotate_logs();
+
     FILE *log = fopen(LOG_FILE, "a");
     if (log) {
         time_t now = time(NULL);
         char *time_str = ctime(&now);
-        time_str[strlen(time_str) - 1] = '\0'; // Strip trailing newline
+        time_str[strlen(time_str) - 1] = '\0'; 
 
-        // Write structured, machine-readable log entries
         fprintf(log, "[%s] ALERT | Source: %s:%d -> Local:%d | State: %s | Size: %d Bytes\n", 
                 time_str, src_ip, src_port, dest_port, flag_state, size);
         fclose(log);
-    } else {
-        printf("[!] Critical Error: Unable to write to forensic log subsystem.\n");
     }
 }
 
@@ -54,7 +75,7 @@ void load_firewall_rules() {
 void process_packet(unsigned char* buffer, int size) {
     struct iphdr *iph = (struct iphdr*)buffer;
     
-    if (iph->protocol == 6) { // TCP Protocol
+    if (iph->protocol == 6) { 
         struct sockaddr_in source, dest;
         memset(&source, 0, sizeof(source));
         memset(&dest, 0, sizeof(dest));
@@ -85,7 +106,6 @@ void process_packet(unsigned char* buffer, int size) {
 
                 printf("\n🚨 [FIREWALL INCIDENT] Intercepted Blacklisted Host [%s] -> Logged to Disk\n", src_ip);
                 
-                // Commit the security incident to permanent storage
                 log_firewall_incident(src_ip, src_port, dest_port, flag_desc, size);
                 break;
             }
@@ -99,7 +119,7 @@ int main() {
     unsigned char *buffer = (unsigned char *)malloc(BUFFER_SIZE); 
 
     printf("====================================================\n");
-    printf("   LAUNCHING FORENSIC LOGGING IPS FIREWALL ENGINE   \n");
+    printf("   LAUNCHING SELF-ROTATING IPS FIREWALL ENGINE       \n");
     printf("====================================================\n");
     
     load_firewall_rules();
